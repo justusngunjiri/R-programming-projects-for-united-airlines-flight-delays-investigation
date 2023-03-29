@@ -1,0 +1,268 @@
+---
+title: "Project 2"
+author: "Justus Ngunjiri"
+date: "16/11/2022"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(nycflights13)
+install.packages("knitr")
+```
+```{r}
+UA_fdata<- flights%>%
+  filter((carrier=="UA"))%>%
+  drop_na%>%
+  mutate(gain = dep_delay - arr_delay,
+         late = if_else(dep_delay > 0, TRUE, FALSE),very_late=if_else(dep_delay > 30, TRUE, FALSE))
+#Lets see the overall of gains
+ggplot(data=UA_fdata, mapping = aes(x=gain))+
+  geom_histogram(breaks=seq(-100,100, by=10), color="white", fill="#440079")+
+  labs(title= "Gain distribution",x = "Gain (mins)",y="Count")
+# The distribution appears to be slightly left skewed.
+#late vs not late
+
+```
+```{r}
+#Does the average gain differ for flights that departed late versus those that did not? What about for flights that departed more than 30 minutes late?
+#late vs not late
+
+ggplot(data=UA_fdata, mapping = aes(x=late,y=gain))+
+  geom_boxplot(fill="red")+
+  labs(title= "Gain distribution",x = "Gain (mins),Delay (True>0, False<=0)")+
+  ylim(-60,60) # zoomplus/minus one hour
+#Early  flights appear to have a higher gain
+observedl<-mean(UA_fdata$gain[UA_fdata$dep_delay<0 ])-mean(UA_fdata$gain[UA_fdata$dep_delay>=0 ])
+
+#Hypothesis test! Ask what we would assume to be known and not.
+
+
+```
+```{r}
+par(mfrow = c(2,2)) # set figure layout
+hist(UA_fdata$gain[UA_fdata$dep_delay<0],,col = "purple",
+     xlim = c(-100,100),main="Histogram of gains of Not Late flight",xlab="Gain (hrs)",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain[UA_fdata$dep_delay<0],main = "Normal Q-Q Plot of Early flights")
+qqline(UA_fdata$gain[UA_fdata$dep_delay<0 ])
+
+
+hist(UA_fdata$gain[UA_fdata$dep_delay>0],,col = "purple",
+     xlim = c(-100,100),main="Histogram of gains of late flight",xlab="Gain (hrs)",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain[UA_fdata$dep_delay>0 ],main = "Normal Q-Q Plot of Late flights")
+qqline(UA_fdata$gain[UA_fdata$dep_delay>0 ])
+nlate= length(UA_fdata$gain[UA_fdata$dep_delay>0 ])
+nearly=length(UA_fdata$gain[UA_fdata$dep_delay<=0 ])
+#Early  flights appear to have a higher gain
+observedl<-mean(UA_fdata$gain[UA_fdata$dep_delay<0 ])-mean(UA_fdata$gain[UA_fdata$dep_delay>=0 ])
+```
+
+```{r}
+
+#greaterthan30
+ggplot(data=UA_fdata, mapping = aes(x=very_late,y=gain))+
+  geom_boxplot(fill="red")+
+  labs(title= "Gain distribution",x = "Gain (mins),Delay (True>30, False<=30)")+
+  ylim(-60,60) # zoomplus/minus one hour
+
+observedvl<-mean(UA_fdata$gain[UA_fdata$dep_delay<=30 ])-mean(UA_fdata$gain[UA_fdata$dep_delay>30 ])
+
+```
+```{r}
+par(mfrow = c(2,2)) # set figure layout
+hist(UA_fdata$gain[UA_fdata$dep_delay<=30],col = "purple",cex.main=0.8,
+     xlim = c(-100,100),main="Histogram of gains of departure delay lt30 flight",xlab="Gain (hrs)",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain[UA_fdata$dep_delay<=30],main = "Normal Q-Q Plot of departure delay lt30 flights",cex.main=0.8)
+qqline(UA_fdata$gain[UA_fdata$dep_delay<=300 ])
+
+
+hist(UA_fdata$gain[UA_fdata$dep_delay>30],col = "purple",cex.main=0.8,
+     xlim = c(-100,100),main="Histogram of gains of departure delay gt30 flight",xlab="Gain (hrs)",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain[UA_fdata$dep_delay>30 ],main = "Normal Q-Q Plot of departure delay gt30 flights",cex.main=0.8)
+qqline(UA_fdata$gain[UA_fdata$dep_delay>30 ])
+nlate= length(UA_fdata$gain[UA_fdata$dep_delay>30 ])
+nearly=length(UA_fdata$gain[UA_fdata$dep_delay<=30 ])
+#Early  flights appear to have a higher gain
+observedvl<-mean(UA_fdata$gain[UA_fdata$dep_delay<=30 ])-mean(UA_fdata$gain[UA_fdata$dep_delay>30 ])
+
+```
+
+
+```{r}
+#hypotheis test
+#greater than 0 or not
+t.test(gain~late,data=UA_fdata, alternative = "two.sided")
+#greater than 30 or not
+t.test(gain~late,data=UA_fdata, alternative = "two.sided")
+
+```
+```{r}
+#Q2 Top 5 Destination and distribution from New York
+head(UA_fdata%>%group_by(dest)%>%count(dest,sort=T),n=5)
+```
+
+
+```{r}
+#Distribution of gain in these five
+top5<-UA_fdata%>%filter(dest%in%c("IAH","ORD","SFO","LAX","DEN"))
+ggplot(data = top5, mapping = aes(x = gain)) +
+  geom_histogram(breaks=seq(-100,70, by=5), color="white", fill="#440079") +
+  facet_wrap(~ dest)
+
+```
+```{r}
+#Distribution of gain in these five
+top5<-UA_fdata%>%filter(dest%in%c("IAH","ORD","SFO","LAX","DEN"))
+ggplot(data = top5, mapping = aes(y = gain,x=dest)) +
+  geom_boxplot(color="orange", fill="#440079")+
+  xlab("Destination")+ylab("gain(mins)")
+```
+
+```{r}
+##Their means
+top5Averages<-top5%>%group_by(dest)%>%
+  summarize(mean=mean(gain))
+
+```
+#
+```{r}
+##number 3
+UA_fdata<-UA_fdata%>%mutate(hours = air_time / 60,
+         gain_per_hour = gain / hours)
+#Lets see the overall of gains
+ggplot(data=UA_fdata, mapping = aes(x=gain_per_hour))+
+  geom_histogram(breaks=seq(-50,50, by=5), color="white", fill="#440079")+
+  labs(title= "gain_per_hour distribution",x = "gain_per_hour ",y="Count")
+# The distribution appears to be slightly left skewed.
+#late vs not late
+head(UA_fdata)
+
+```
+```{r}
+#Does the average gain_per_hour differ for flights that departed late versus those that did not? What about for flights that departed more than 30 minutes late?
+#late vs not late
+
+ggplot(data=UA_fdata, mapping = aes(x=late,y=gain_per_hour))+
+  geom_boxplot(fill="red")+
+  labs(title= "gain_per_hour distribution",x = "gain_per_hour,Delay (True>0, False<=0)") # zoomplus/minus one hour
+#Early  flights appear to have a higher gain_per_hour
+observedl<-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay<0 ])-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay>=0 ])
+
+#Hypothesis test! Ask what we would assume to be known and not.
+
+
+```
+```{r}
+par(mfrow = c(2,2)) # set figure layout
+hist(UA_fdata$gain_per_hour[UA_fdata$dep_delay<0],,col = "purple",
+     xlim = c(-100,100),main="Histogram of gain_per_hours of Not Late flight",xlab="gain_per_hour ",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain_per_hour[UA_fdata$dep_delay<0],main = "Normal Q-Q Plot of Early flights")
+qqline(UA_fdata$gain_per_hour[UA_fdata$dep_delay<0 ])
+
+
+hist(UA_fdata$gain_per_hour[UA_fdata$dep_delay>0],,col = "purple",
+     xlim = c(-50,70),main="Histogram of gain_per_hours of late flight",xlab="gain_per_hour",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain_per_hour[UA_fdata$dep_delay>0 ],main = "Normal Q-Q Plot of Late flights")
+qqline(UA_fdata$gain_per_hour[UA_fdata$dep_delay>0 ])
+nlate= length(UA_fdata$gain_per_hour[UA_fdata$dep_delay>0 ])
+nearly=length(UA_fdata$gain_per_hour[UA_fdata$dep_delay<=0 ])
+#Early  flights appear to have a higher gain_per_hour
+observedl<-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay<0 ])-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay>=0 ])
+```
+
+```{r}
+
+#greaterthan30
+ggplot(data=UA_fdata, mapping = aes(x=very_late,y=gain_per_hour))+
+  geom_boxplot(fill="red")+
+  labs(title= "gain_per_hour distribution",x = "gain_per_hour (mins),Delay (True>30, False<=30)") # 
+
+observedvl<-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay<=30 ])-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay>30 ])
+
+```
+```{r}
+par(mfrow = c(2,2)) # set figure layout
+hist(UA_fdata$gain_per_hour[UA_fdata$dep_delay<=30],col = "purple",cex.main=0.8,cex.axis=0.8,breaks =50,
+     xlim = c(-50,60),main="Histogram of gain_per_hours of departure delay lt30 flight",xlab="gain_per_hour ",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain_per_hour[UA_fdata$dep_delay<=30],main = "Normal Q-Q Plot of departure delay lt30 flights",cex.main=0.8)
+qqline(UA_fdata$gain_per_hour[UA_fdata$dep_delay<=300 ])
+
+
+hist(UA_fdata$gain_per_hour[UA_fdata$dep_delay>30],col = "purple",cex.main=0.8,cex.axis=0.8,breaks = 50,
+     xlim = c(-50,50),main="Histogram of gain_per_hour of departure delay gt30 flight",xlab="gain_per_hour ",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain_per_hour[UA_fdata$dep_delay>30 ],main = "Normal Q-Q Plot of departure delay gt30 flights",cex.main=0.8)
+qqline(UA_fdata$gain_per_hour[UA_fdata$dep_delay>30 ])
+nlate= length(UA_fdata$gain_per_hour[UA_fdata$dep_delay>30 ])
+nearly=length(UA_fdata$gain_per_hour[UA_fdata$dep_delay<=30 ])
+#Early  flights appear to have a higher gain_per_hour
+observedvl<-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay<=30 ])-mean(UA_fdata$gain_per_hour[UA_fdata$dep_delay>30 ])
+
+```
+
+
+```{r}
+#Hypothesis test
+#hypotheis test
+#greater than 0 or not
+t.test(gain_per_hour~late,data=UA_fdata, alternative = "two.sided")
+#greater than 30 or not
+t.test(gain_per_hour~very_late,data=UA_fdata, alternative = "two.sided")
+
+```
+```{r}
+#Part 4
+#Does the average gain per hour differ for longer flights versus shorter flights
+UA_fdata<-UA_fdata%>% 
+  mutate(flength = if_else(hours > 3 ,"Long", "Short"))
+         
+#Long fligh airtime more than 3 hours
+#short airtime less than 3 hours
+png(file="longhist.png",width = 6, height = 4,
+    units = "in",res=100)
+par(mfrow = c(2,2)) # set figure layout
+hist(UA_fdata$gain_per_hour[UA_fdata$hours<=3],col = "purple",cex.main=0.8,cex.axis=0.8,breaks =50,  xlim=c(-50,50),
+     main="Histogram of gain_per_hour for Short flights",xlab="gain_per_hour ",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain_per_hour[UA_fdata$hours<=3],main = "Normal Q-Q Plot for short flights",cex.main=0.8)
+qqline(UA_fdata$gain_per_hour[UA_fdata$hours<=3 ])
+
+
+hist(UA_fdata$gain_per_hour[UA_fdata$hours>3],col = "purple",cex.main=0.8,cex.axis=0.8,breaks = 50,xlim=c(-30,20),
+    main="Histogram of gain_per_hour of long flights",xlab="gain_per_hour ",ylab="Frequency" ) # same x range in
+# both plots
+qqnorm(UA_fdata$gain_per_hour[UA_fdata$hours>3 ],main = "Normal Q-Q Plot of Long flights",cex.main=0.8)
+qqline(UA_fdata$gain_per_hour[UA_fdata$hours>3 ])
+dev.off()
+nlong= length(UA_fdata$gain_per_hour[UA_fdata$hours>3 ])
+nshort=length(UA_fdata$gain_per_hour[UA_fdata$hours<=3 ])
+observedv4<-mean(UA_fdata$gain_per_hour[UA_fdata$hours<=3 ])-mean(UA_fdata$gain_per_hour[UA_fdata$hours>3 ])
+#CI test
+t.test(gain_per_hour ~ flength, data=UA_fdata, conf.level=0.95)$conf
+
+```
+```{r}
+t.test(gain_per_hour ~ flength, data=UA_fdata, conf.level=0.95)$conf
+```
+
+
+```{r}
+png(file="longbox.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_fdata, mapping = aes(y=flength,x=gain_per_hour))+
+  geom_boxplot(fill="purple")+
+  labs(x= "gain_per_hour",y = "Long (hours>3) or Short (hours<=3)") # 
+
+observedv4<-mean(UA_fdata$gain_per_hour[UA_fdata$hours<=3 ])-mean(UA_fdata$gain_per_hour[UA_fdata$hours>3 ])
+dev.off()
+```
+
+
+
+

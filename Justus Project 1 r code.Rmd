@@ -1,0 +1,677 @@
+---
+title: "Project 1"
+author: "Justus Ngunjiri"
+date: "18/10/2022"
+output: html_document
+---
+## Your report should address the relationship between departure delays and each of the following:
+
+1.Time of day
+2.Time of year
+3.Temperature
+4. Wind speed
+5.Precipitation
+6. Visibility
+```{r}
+library(lubridate)
+library(tidyverse)
+library(nycflights13)
+library(readr)
+UA_fdata<- flights%>%
+  filter((carrier=="UA") & (flights$dep_delay>0))
+
+
+head(UA_fdata)
+max(UA_fdata$sched_dep_time)
+
+
+```
+## Time of the day
+```{r}
+#How does length of departure delay compare with the time of the day?
+#We carrry out a scatter plot to do this by checking depending on time the flight was scheduled, how  does long  are the departure delay?
+# We are also interested in knowing where these delays are from. 
+#sched_dep_time
+#ggplot(data=UA_fdata%>%group_by(day), mapping = aes(x=sched_dep_time, y=dep_delay,color=origin))+
+  #geom_point(alpha=0.7)+
+  #xlim(5,2350)
+png(file="timeboxplot1.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data = UA_fdata, mapping = aes(x = factor(hour(time_hour)), y =dep_delay, fill=origin)) +
+  geom_boxplot(color="black")+
+  labs(title= "Departure delay with time of the day",x = "Hour of the day (24hr system)",y="departure delay length (mins)")+
+  ylim(0,100)
+dev.off()
+  
+
+
+
+ 
+  
+
+
+
+```
+ It is observed that 686 rows  were removed meaning that 686 rows had missing data for the information that was being potted. From the scatter plot, we see that most of the flights scheduled to depart in the early hours of the day experience shorter delays.  However, regardless of the time, most of the delays are for flights originaating from EWR airport. Firstlty,  we also look at the distribution of departure delays to understand the distribution of the delay duration by the use of a histogram.
+```{r}
+png(file="depdelayhist.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_fdata, mapping = aes(x=dep_delay))+
+  geom_histogram(breaks=seq(0,500, by=10), color="white", fill="#440079")+
+  labs(title= "Departure delay distribution",x = "Departure delay duration (mins)",y="Count")
+#dev.off()
+# We see that teh departure delays are right skewed and suggest to follow an exponential distribution. SO do we use the the mean of median to test our hypothesis. Well, median is better with skewed data. However, we still go with the mean  beacuse..
+```
+ 
+ 
+
+Therefore, we might be interested in knowing whether the mean departure delay delayed in the first half of the day hours are the same or not. We conduct a hypothesis permutation  test based on that and compare the differences. This is done using the very_late variable. For instance, because we compare the proportion of very late flights as used in the previous assignments between the two halves of the scheduling time. The first half is from 0500 to and  including 1300 while the other one is  between 1400 and 2345.
+```{r}
+
+#8009877237
+
+```
+
+```{r}
+#Permutation test 1, Early morning and early afternoon flights and late afternoon and evening flights.
+#Calculate the mean difference of te two flights
+#EMEA means Early morning and early afternoon
+#LFEV stands for late afternoon and evening flights. 
+EMEA <- mean(UA_fdata$dep_delay[UA_fdata$sched_dep_time<= 1420 ], na.rm = TRUE)
+LFEV <- mean(UA_fdata$dep_delay[UA_fdata$sched_dep_time> 1420 ], na.rm = TRUE)
+
+observed= LFEV-EMEA
+N <- 10^3-1
+
+#sample.size = the number of observations in our sample
+sample.size = sum((UA_fdata$sched_dep_time<=1420))+sum((UA_fdata$sched_dep_time>1420))
+
+#group.1.size = the number of observations in the first group
+group.1.size = sum((UA_fdata$sched_dep_time<=1420))
+
+#create a blank vector to store the simulation results
+sim_mn_p1 <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled are EMEA
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean delay between the index and non-index groups
+  #create a blank vector to store the simulation results
+sim_mn_p1[i] = mean(UA_fdata$dep_delay[index], na.rm = TRUE)- mean(UA_fdata$dep_delay[-index], na.rm = TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+(mean(sim_mn_p1))
+ggplot(data=tibble(sim_mn_p1), mapping = aes(x=sim_mn_p1)) + 
+  geom_histogram(colour="white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+2*(sum(sim_mn_p1 >=observed) + 1) / (N + 1)
+
+
+```
+
+We obtain a  pvalue of 0.002, which is way too low if we assumed a significance of 0.05. In this case we reject the null hypothesis that the mean delays for EMEA and LTEF are the same. The differece between mean delay of the two halves is actually different and significant. Thus if the airline is struggling with late LFEV fligths sales, they can possibly attribute it to customers knowing that LFEV fligths are usualaly delayed.
+```{r}
+# 2 Time of the year
+## to make sense out of this and compare with other paramaters in the relationship
+# First let us visualize the delays distribution in the 12 months of the year.
+#ggplot(data=UA_fdata%>%group_by(month), mapping = aes(x=month, y=dep_delay, color=origin))+
+  #geom_point(breaks=seq(1,12, by=3))
+png(file="yearscatter.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_fdata%>%group_by(month), mapping = aes(x=month,group=cut_width(month, 3), y=dep_delay, color=origin))+
+  geom_point()+
+  labs(title= "Departure delay with time of the year by origin",x = "Month ",y="departure delay duration (mins)")
+dev.off()
+
+  
+ 
+
+```
+```{r}
+png(file="yearmonthboxplot1.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data = UA_fdata, mapping = aes(x = factor(month), y =dep_delay, fill=factor(month))) +
+  geom_boxplot(color="black")+
+  labs(title= "Departure delay with month of the year boxplots")+
+  labs(x = "Month of the year")+
+  labs(y = "Departure delay length (mins)")+
+  ylim(0,100)
+dev.off()
+  
+```
+
+```{r}
+sum(UA_fdata$dep_delay > 100)
+nrow(UA_fdata)
+```
+
+```{r}
+UA_fdata <- 
+  UA_fdata %>%
+  filter(dep_delay>0)%>%
+  # make quarters
+  mutate(
+    year_Q = case_when(
+      month >= 7 & month <= 9 ~ 'Q3'
+      , month >= 10 & month <= 12 ~ 'Q4'
+      , month >= 1 & month <= 3 ~ 'Q1'
+      , month >= 4 & month <= 6 ~ 'Q2' ) )
+```
+
+```{r}
+# dep delay summary stats
+png(file="depdelayyearQbar.png",width = 6, height = 4,
+    units = "in",res=100) # Saving the plot
+sum_flights<- UA_fdata %>% 
+  group_by(year_Q)%>%
+  summarize( mean_dep_del=mean(dep_delay))
+# Plotting the bar gragh for the four quarters of the year
+ggplot(sum_flights, aes( y=mean_dep_del, x=year_Q)) + 
+    geom_bar(position="dodge", stat="identity", fill="purple")+
+  labs(title= "Mean departure delay with quarter of the year",x = "Quarter of the year ",y="Departure delay duration   (mins)")
+dev.off()
+
+```
+
+```{r}
+# Plotting the box plot  for the four quarters of the year
+png(file="depdelayyearQboxplot.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_fdata, mapping = aes(x=year_Q, y=dep_delay))+
+  geom_boxplot(fill='purple')+
+  ylim(0,60)+
+  labs(title= "Departure delay with quarter of the year boxplot",x = "Quarter of the year ",y="Departure delay duration   (mins)")
+dev.off()
+```
+
+```{r}
+#Permutation test 2 Q, Q1 and Q4 flights and Q2 and Q3 flights
+#Calculate the mean difference of the two flights categories
+#q1q4 
+#q2q3 
+q1q4<-mean(UA_fdata$dep_delay[UA_fdata$year_Q %in% c('Q1','Q4')], na.rm = TRUE)
+q2q3<-mean(UA_fdata$dep_delay[UA_fdata$year_Q %in% c('Q2','Q3')], na.rm = TRUE)
+
+
+observed= q2q3-q1q4
+N <- 10^4-1
+
+#sample.size = the number of observations in our sample
+sample.size = sum(UA_fdata$year_Q %in% c('Q1','Q4'))+sum(UA_fdata$year_Q %in% c('Q2','Q3'))
+
+#group.1.size = the number of observations in the first group
+group.1.size = sum(UA_fdata$year_Q %in% c('Q1','Q4'))
+
+#create a blank vector to store the simulation results
+sim_mn_p2 <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled are q1 and q4
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean delay between the index and non-index groups
+  #create a blank vector to store the simulation results
+sim_mn_p2[i] = mean(UA_fdata$dep_delay[index], na.rm = TRUE)- mean(UA_fdata$dep_delay[-index], na.rm = TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+mean(sim_mn_p2)
+ggplot(data=tibble(sim_mn_p2), mapping = aes(x=sim_mn_p2)) + 
+  geom_histogram(colour="white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+2*(sum(sim_mn_p2 >=observed) + 1) / (N + 1)
+## Very small p value of 0.0002
+
+
+```
+
+
+```{r}
+# 3 Temperature variable with departure delay
+UA_weather_joined <- UA_fdata %>%
+  inner_join(weather, by = c("year", "month", "day", "hour", "origin"))
+UA_weather_joined
+## Visualize the temperature distribution regardless of time
+mean(UA_weather_joined$temp, na.rm=TRUE)
+median(UA_weather_joined$temp, na.rm=TRUE)
+png(file="temphist.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=temp))+
+  geom_histogram(breaks=seq(-20,110, by=5), color="white", fill="#440079")+
+  labs(title= "Temperature distribution",x = "Temperature ",y="Count")
+dev.off()
+# Multimodal
+#UA_weather_joined
+
+
+```
+
+
+```{r}
+#summary statistics for year quarter
+sum_flights<- UA_weather_joined %>% 
+  group_by(year_Q)%>%
+  summarize(mean_temps=mean(temp,na.rm = TRUE), mean_del=mean(dep_delay))
+png(file="meantempyearQbar.png",width = 6, height = 4,
+    units = "in",res=100) # Adding axis labels
+#
+ggplot(sum_flights, aes( y=mean_del, x=mean_temps, fill=year_Q)) + 
+    geom_col(position="dodge", stat="identity")+
+  labs(title= "Mean departure delay with temperature over quarters of the year",x = "Mean temperatures over the quarters ",y="mean departure delay duration   (mins)")
+dev.off()
+#heatplot
+#pairplot # These are just ideas but they were not used
+#hist plot mean of season
+# Mean temp by day
+sum_day_halves<- UA_weather_joined %>% 
+  group_by(day)%>%
+  summarize(mean_temps=mean(temp,na.rm = TRUE), mean_del=mean(dep_delay))
+
+
+```
+```{r}
+# temp category
+UA_weather_joined<-UA_weather_joined%>%
+  mutate(temp.cat=if_else(UA_weather_joined$temp > 55, "Gt55", "Lt55"))
+#head(UA_weather_joined)
+# Plotting the box plot for the temperature category
+png(file="tempboxplot1.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=temp, y=dep_delay,color=temp.cat))+
+  geom_boxplot()+
+  ylim(0,60)+
+  labs(title= "Departure delay with temperature of based on category",x = "Temperatures in ( °F) ",y=" Departure delay duration   (mins)")
+dev.off()
+```
+
+
+```{r}
+#Temp greater than 55 and lessthan 55
+#Permutation test 3 Gt than 55 and Lt55 permutation test
+
+temp.gt.55<-mean(UA_weather_joined$dep_delay[UA_weather_joined$temp>55], na.rm = TRUE)
+temp.lt.55<-mean(UA_weather_joined$dep_delay[UA_weather_joined$temp<=55], na.rm = TRUE)
+
+
+observed= temp.gt.55-temp.lt.55
+N <- 10^3-1
+
+#sample.size = the number of observations in our sample
+sample.size = sum(UA_weather_joined$temp>55,na.rm = TRUE)+sum(UA_weather_joined$temp<=55,na.rm = TRUE)
+
+#group.1.size = the number of observations in the first group
+group.1.size = sum(UA_weather_joined$temp>55,na.rm = TRUE)
+
+#create a blank vector to store the simulation results
+sim_mn_p3 <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  #indexes sampled are q1 and q4
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean delay between the index and non-index groups
+  #create a blank vector to store the simulation results
+sim_mn_p3[i] = mean(UA_weather_joined$dep_delay[index], na.rm = TRUE)- mean(UA_weather_joined$dep_delay[-index], na.rm = TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+mean(sim_mn_p3)
+ggplot(data=tibble(sim_mn_p3), mapping = aes(x=sim_mn_p3)) + 
+  geom_histogram(colour="white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+2*(sum(sim_mn_p3 >=observed) + 1) / (N + 1)
+## Very small p value 0.002
+```
+
+```{r}
+
+#4 Wind speed
+# visualise the distribution of wind speed first
+png(file="Windspeedhist.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=wind_speed))+
+  geom_histogram(breaks=seq(0,40, by=2), color="white", fill="cyan")+
+  geom_vline(xintercept=mean(mean(UA_weather_joined$wind_speed,na.rm = TRUE)),color="black")+
+  labs(title= "Distribution of wind speed",x = "Speed ",y=" Departure delay duration   (mins)")
+dev.off()
+   
+mean(UA_weather_joined$wind_speed,na.rm = TRUE)
+# The distribution of the wind speed is a bit has some element of gamma distribution with the stronger skew being towards the right as shown in the histogram with a mean of 10.55
+max(UA_weather_joined$wind_speed, na.rm = TRUE)
+
+```
+```{r}
+# The wind speed scatter plot
+png(file="windscatter.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=wind_speed, y=dep_delay,color=origin))+
+  geom_point()+
+  labs(title= "Departure delay with wind speed",x = "Windspeed",y="departure delay length (mins)")
+dev.off()
+min(UA_weather_joined$wind_speed, na.rm = TRUE)
+max(UA_weather_joined$wind_speed, na.rm=TRUE)
+  
+  #Check windpeed more than 20, vs less than 20 from initial scatter plot.
+# ALso discuss that it might be due to the wind direction
+# See boxplot below
+```
+
+
+```{r}
+# Grouping the two categores based on wind speed of 20
+UA_weather_joined<-UA_weather_joined%>%
+  mutate(windspeed.cat=if_else(UA_weather_joined$wind_speed > 20, "Gt20", "Lt20"))
+#head(UA_weather_joined)
+png(file="windboxplot.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=wind_speed, y=dep_delay,color=windspeed.cat))+
+  geom_boxplot()+
+  ylim(0,60)+labs(title= "Departure delay vs wind speed boxplots",x = "Windspeed ",y=" Departure delay duration (mins)")
+dev.off()
+png(file="windboxplot2orig.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=wind_speed, y=dep_delay,color=origin))+
+  geom_boxplot()+
+  ylim(0,60)+
+  labs(title= "Departure delay boxplot with wind speed based on origin",x = "wind speed and origin ",y=" Departure delay duration   (mins)")
+dev.off()
+
+```
+```{r}
+#Permutation test 4  for wind speed 
+glimpse(UA_fdata)
+wind.gt.20<-mean(UA_weather_joined$dep_delay[UA_weather_joined$wind_speed>20], na.rm = TRUE)
+wind.lt.20<-mean(UA_weather_joined$dep_delay[UA_weather_joined$wind_speed <=20], na.rm = TRUE)
+
+
+observed= wind.lt.20-wind.gt.20
+N <- 10^3-1
+
+#sample.size = the number of observations in our sample
+sample.size = sum(UA_weather_joined$wind_speed>20,na.rm = TRUE)+sum(UA_weather_joined$wind_speed<=20,na.rm = TRUE)
+
+#group.1.size = the number of observations in the first group
+group.1.size = sum(UA_weather_joined$wind_speed>20,na.rm = TRUE)
+
+#create a blank vector to store the simulation results
+sim_mn_p4 <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean delay between the index and non-index groups
+  #create a blank vector to store the simulation results
+sim_mn_p4[i] = mean(UA_weather_joined$dep_delay[index], na.rm = TRUE)- mean(UA_weather_joined$dep_delay[-index], na.rm = TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+mean(sim_mn_p4)
+ggplot(data=tibble(sim_mn_p4), mapping = aes(x=sim_mn_p4)) + 
+  geom_histogram(colour="white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+2*(sum(sim_mn_p4 >=observed) + 1) / (N + 1)
+# 0.474. Significant, because it is above 
+```
+
+
+```{r}
+# summary statistics for the wind variable
+sum_flights_wind<- UA_weather_joined %>% 
+  group_by(day,windspeed.cat)%>%
+  summarize(mean_wind=mean(wind_speed,na.rm = TRUE), mean_delay=mean(dep_delay,na.rm = TRUE), origin,windspeed.cat)
+tail(sum_flights_wind)
+
+
+```
+
+
+
+```{r}
+#5 Precipitation
+# visualise the distribution of precip  first
+png(file="preciphist.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=precip))+
+  geom_histogram(breaks=seq(0,1.5, by=0.05), color="white", fill="cyan")+
+  geom_vline(xintercept=mean(mean(UA_weather_joined$precip,na.rm = TRUE)),color="black")
+(mean(UA_weather_joined$precip,na.rm = TRUE))
+min(UA_weather_joined$precip,na.rm = TRUE)
+dev.off()
+```
+
+
+```{r}
+
+mean(UA_weather_joined$precip,na.rm = TRUE)
+#Investigate gt than mean and less than mean
+#Median would have been great because of right skew but it is just zero so not insightful
+sum_precip<-UA_weather_joined%>%
+  mutate(precip.cat=ifelse(precip>0.605,"gt.m.precip", "lt.m.precip"))
+  #group_by(day)
+
+max(sum_precip$precip)
+
+# right skewed and have values of nearly zero
+```
+```{r}
+sum_flights_precip<- UA_weather_joined %>% 
+  group_by(day)%>%
+  summarize(mean_precip=mean(precip,na.rm = TRUE), mean_delay_orig_time_hour=mean(dep_delay,na.rm = TRUE), origin)
+#sum_flights_precip
+
+```
+```{r}
+
+```
+
+
+
+
+```{r}
+# precipitation box plot
+png(file="precipboxplot1.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=sum_precip, mapping = aes(x=precip, y=dep_delay, color=factor(precip.cat)))+
+  geom_boxplot()+
+  ylim(0,100)+labs(title= "Departure delay with precipitation",x = "Precipitation ",y=" Departure delay duration (mins)")
+dev.off()
+  
+
+## Suggest a negative relationship. lower precipitation longer departure delays. 
+# Fit a scatter line with means to zoom in
+# Permutation test on p greater than o.5 and less than
+
+```
+
+```{r}
+#Permutation test 5 Q, precipitation greater than mean vs that less than the mean
+#Calculate the mean difference of te precip groups
+
+precip.gt.605<-mean(UA_weather_joined$dep_delay[UA_weather_joined$precip>0.605], na.rm = TRUE)
+precip.lt.605<-mean(UA_weather_joined$dep_delay[UA_weather_joined$precip <=0.605], na.rm = TRUE)
+
+
+observed= precip.gt.605-precip.lt.605
+N <- 10^3-1
+
+#sample.size = the number of observations in our sample
+sample.size = sum(UA_weather_joined$precip>0.605,na.rm = TRUE)+sum(UA_weather_joined$precip<=0.605,na.rm = TRUE)
+
+#group.1.size = the number of observations in the first group
+group.1.size = sum(UA_weather_joined$precip>0.605,na.rm = TRUE)
+
+#create a blank vector to store the simulation results
+sim_mn_p5 <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean delay between the index and non-index groups
+  #create a blank vector to store the simulation results
+sim_mn_p5[i] = mean(UA_weather_joined$dep_delay[index], na.rm = TRUE)- mean(UA_weather_joined$dep_delay[-index], na.rm = TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+mean(sim_mn_p5)
+ggplot(data=tibble(sim_mn_p5), mapping = aes(x=sim_mn_p5)) + 
+  geom_histogram(colour="white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+2*(sum(sim_mn_p5 >=observed) + 1) / (N + 1)
+# 0.0.008. Not Significant, because it is below 0.05
+
+
+```
+
+```{r}
+#Visibility
+# visualise the distribution ofvisibility first
+png(file="visibHist.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=visib))+
+  geom_histogram(breaks=seq(0,10, by=1), color="white", fill="black")+
+  geom_vline(xintercept=mean(UA_weather_joined$visib,na.rm = TRUE),color="red")+
+  labs(title= "Distribution of visibility",x = "visibility ",y=" Count")
+dev.off()
+(mean(UA_weather_joined$visib,na.rm = TRUE))
+min(UA_weather_joined$visib,na.rm = TRUE)
+max(UA_weather_joined$visib,na.rm = TRUE)
+#hist(UA_weather_joined$visib, fill="black")
+# left  skewed and have values of nearly zero
+# multi modal
+
+```
+
+```{r}
+png(file="visibscatter.png",width = 6, height = 4,
+    units = "in",res=100)
+ggplot(data=UA_weather_joined, mapping = aes(x=visib, y=dep_delay, color=origin))+
+  geom_point()+
+  labs(title= "Departure delay with visibility by origin",x = "visibility ",y=" Departure delay duration   (mins)")
+dev.off()
+#mean(UA_weather_joined$visib)
+
+## Suggest a negative relationship. lower precipitation longer departure delays. 
+
+```
+
+
+```{r}
+# summary statistics of the two groups of variability
+sum_flights_visib<-UA_weather_joined%>%
+  mutate(visib.cat=ifelse(visib>5,"gt.five.visib", "lt.five.visib"))
+```
+```{r}
+# Visibility categories box plot
+png(file="visibboxplot1.png",)
+ggplot(data=sum_flights_visib, mapping = aes(x=visib, y=dep_delay, color=visib.cat))+
+  geom_boxplot()+
+  ylim(0,60)+
+  labs(title= "Departure delay with visibility by origin",x = "visibility ",y=" Departure delay duration   (mins)")
+  
+dev.off()
+
+
+```
+
+```{r}
+#Permutation test  for visibility # 6
+visib.gt.5<-mean(UA_weather_joined$dep_delay[UA_weather_joined$visib >5], na.rm = TRUE)
+visib.lt.5<-mean(UA_weather_joined$dep_delay[UA_weather_joined$visib <=5], na.rm = TRUE)
+
+
+observed= visib.lt.5-visib.gt.5
+N <- 10^4-1
+
+#sample.size = the number of observations in our sample
+sample.size = sum(UA_weather_joined$visib>5,na.rm = TRUE)+sum(UA_weather_joined$visib<=5,na.rm = TRUE)
+
+#group.1.size = the number of observations in the first group
+group.1.size = sum(UA_weather_joined$visib>5,na.rm = TRUE)
+
+#create a blank vector to store the simulation results
+sim_mn_p6 <- numeric(N)
+
+#use a for loop to cycle through values of i ranging from 1 to N
+for(i in 1:N)
+{
+  #each iteration, randomly sample index values
+  #sample.size gives the total number of index values to sample from
+  #group.1.size gives the number of index values to sample
+  #sample without replacement
+
+  index = sample(sample.size, size=group.1.size, replace = FALSE)
+
+  #calculate and store the difference in 
+  #mean delay between the index and non-index groups
+  #create a blank vector to store the simulation results
+sim_mn_p6[i] = mean(UA_weather_joined$dep_delay[index], na.rm = TRUE)- mean(UA_weather_joined$dep_delay[-index], na.rm = TRUE)
+}
+
+#plot a histogram of the simulated differences
+#add a vertical line at the observed difference
+mean(sim_mn_p6)
+ggplot(data=tibble(sim_mn_p6), mapping = aes(x=sim_mn_p6)) + 
+  geom_histogram(colour="white") +
+  geom_vline(xintercept = observed, color = "red")
+
+#Calculate the p-value
+2*(sum(sim_mn_p6 >=observed) + 1) / (N + 1)
+## 0.002, significant
+```
+
+
+
+
